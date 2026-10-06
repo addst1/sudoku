@@ -65,18 +65,21 @@
         <button id="btn-back" class="icon-btn" type="button" aria-label="메뉴로 나가기">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <div class="status">
-          <strong id="g-diff">보통</strong>
-          <span id="g-time" aria-label="경과 시간">00:00</span>
-        </div>
-        <div id="g-lives" class="lives" role="img" aria-label="남은 하트"></div>
+        <span class="top-spacer"></span>
         <button id="btn-game-settings" class="icon-btn" type="button" aria-label="설정">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
+      </header>
+
+      <div class="infobar">
+        <strong id="g-diff">보통</strong>
+        <div class="clock"><span id="g-time" aria-label="경과 시간">00:00</span>
         <button id="btn-pause" class="icon-btn" type="button" aria-label="일시정지">
           <svg id="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         </button>
-      </header>
+        </div>
+        <div id="g-lives" class="lives" role="img" aria-label="남은 하트"></div>
+      </div>
 
       <div class="board-wrap">
         <div id="board" role="group" aria-label="스도쿠 판"></div>
@@ -99,20 +102,21 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
           <span>지우기</span>
         </button>
-        <button id="btn-notes" class="tool" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-          <span>메모</span>
-          <i id="notes-state" class="badge">끔</i>
-        </button>
         <button id="btn-hint" class="tool" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
           <span>힌트</span>
           <i id="hint-count" class="badge">0</i>
         </button>
+        <button id="btn-notes" class="tool" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+          <span>메모</span>
+          <i id="notes-state" class="badge">끔</i>
+        </button>
       </div>
 
       <label class="fast-row">
-        <span><b>빠른 입력</b><small id="fast-hint">판의 맞춘 숫자를 누른 뒤 빈 칸을 누르면 같은 숫자가 입력돼요</small></span>
+        <span><small id="fast-hint">판의 맞춘 숫자를 누른 뒤 빈 칸을 누르면 같은 숫자가 입력돼요</small></span>
+        <b class="fast-label">빠른 입력</b>
         <input type="checkbox" id="btn-fast" role="switch">
       </label>
 
