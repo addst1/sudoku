@@ -340,8 +340,8 @@
     $('#btn-fast').checked = settings.fastInput;
     $('.fast-row').classList.toggle('on', settings.fastInput);
     $('#fast-hint').textContent = !settings.fastInput
-      ? '판이나 아래 숫자를 고른 뒤 빈 칸을 누르면 바로 입력돼요'
-      : (activeNum ? activeNum + ' 입력 중 · 빈 칸을 누르세요' : '판의 숫자나 아래 숫자를 눌러 고르세요');
+      ? '판의 맞춘 숫자를 누른 뒤 빈 칸을 누르면 같은 숫자가 입력돼요'
+      : (activeNum ? activeNum + ' 입력 중 · 빈 칸을 누르세요' : '판에 채워진 숫자를 눌러 고르세요');
   }
 
   /* ------------------------------------------------------------------ 편집 (되돌리기 지원) */
@@ -437,12 +437,6 @@
     select(i);
   }
 
-  function chooseNumber(n) {
-    if (!usable()) return;
-    activeNum = activeNum === n ? 0 : n;
-    renderAll();
-  }
-
   function setFast(on) {
     if (!G) return;
     settings.fastInput = !!on;
@@ -496,12 +490,9 @@
   function hint() {
     if (!usable()) return;
     const wrong = (i) => !isLocked(i) && G.values[i] !== G.solution[i];
-    let t = G.selected;
-    if (t < 0 || !wrong(t)) {
-      const pool = [];
-      for (let i = 0; i < 81; i++) if (wrong(i)) pool.push(i);
-      t = pool.length ? pool[Math.floor(Math.random() * pool.length)] : -1;
-    }
+    const pool = [];
+    for (let i = 0; i < 81; i++) if (wrong(i)) pool.push(i);
+    const t = pool.length ? pool[Math.floor(Math.random() * pool.length)] : -1;
     if (t < 0) { toast('채울 칸이 없어요'); return; }
     const n = G.solution[t];
     const entry = transact((touch) => {
@@ -753,7 +744,7 @@
       const b = e.target.closest('.num');
       if (!b) return;
       const n = Number(b.dataset.n);
-      if (settings.fastInput) chooseNumber(n); else inputNumber(n);
+      inputNumber(n);
     });
 
     // 설정
