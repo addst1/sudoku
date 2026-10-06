@@ -163,7 +163,7 @@ h1, h2, p { margin: 0; }
 /* ---------- 보드 ---------- */
 .board-wrap {
   position: relative;
-  width: min(100%, calc(100dvh - 330px));
+  width: min(100%, calc(100dvh - 380px));
   min-width: 280px;
   aspect-ratio: 1;
   margin: 0 auto;
@@ -238,14 +238,15 @@ h1, h2, p { margin: 0; }
 .tool {
   appearance: none; border: 1px solid transparent; background: transparent; color: var(--text);
   display: grid; justify-items: center; gap: 4px; padding: 8px 2px; border-radius: 12px;
-  font: inherit; font-size: 12px; cursor: pointer;
+  font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; position: relative;
 }
 .tool:active { background: var(--accent-soft); }
 .tool:disabled { opacity: .35; cursor: default; }
 .tool[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .badge {
-  font-style: normal; font-size: 11px; font-weight: 700; color: var(--accent-ink); background: var(--muted);
-  border-radius: 999px; padding: 1px 6px; margin-left: 2px; vertical-align: 1px;
+  position: absolute; top: 1px; left: calc(50% + 6px);
+  font-style: normal; font-size: 9px; font-weight: 700; line-height: 1.5; color: var(--accent-ink); background: var(--muted);
+  border-radius: 999px; padding: 0 5px; min-width: 16px; text-align: center;
 }
 .tool[aria-pressed="true"] .badge { background: var(--accent); }
 
@@ -351,3 +352,17 @@ table.stats tbody th { text-align: left; color: var(--muted); font-weight: 500; 
 
 #screen-home { position: relative; }
 .theme-quick { position: absolute; top: 8px; right: -6px; z-index: 1; }
+
+/* ---------- v3: 빠른 입력(선택된 숫자) ---------- */
+.numpad .num.active { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.numpad .num.active .left { color: var(--accent-ink); opacity: .85; }
+.numpad.notes-on .num.active { background: var(--accent); border-style: solid; border-color: transparent; }
+.numpad .num.active .d, .numpad.notes-on .num.active .d { color: var(--accent-ink); }
+
+
+.fast-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; }
+.fast-row span { display: grid; gap: 1px; min-width: 0; }
+.fast-row b { font-size: 14px; }
+.fast-row small { color: var(--muted); font-size: 12px; }
+.fast-row.on { border-color: var(--accent); background: var(--accent-soft); }
+.fast-row.on small { color: var(--accent); font-weight: 600; }

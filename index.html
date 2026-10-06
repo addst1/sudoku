@@ -101,13 +101,20 @@
         </button>
         <button id="btn-notes" class="tool" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-          <span>메모 <i id="notes-state" class="badge">끔</i></span>
+          <span>메모</span>
+          <i id="notes-state" class="badge">끔</i>
         </button>
         <button id="btn-hint" class="tool" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-          <span>힌트 <i id="hint-count" class="badge">0</i></span>
+          <span>힌트</span>
+          <i id="hint-count" class="badge">0</i>
         </button>
       </div>
+
+      <label class="fast-row">
+        <span><b>빠른 입력</b><small id="fast-hint">숫자를 먼저 고르고 칸을 누르면 바로 입력돼요</small></span>
+        <input type="checkbox" id="btn-fast" role="switch">
+      </label>
 
       <div id="numpad" class="numpad"></div>
     </section>

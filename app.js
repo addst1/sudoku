@@ -28,7 +28,7 @@
 
   /* ------------------------------------------------------------------ 설정 */
   const settings = Object.assign(
-    { showErrors: true, highlight: true, autoNotes: true, theme: 'auto', lives: 3 },
+    { showErrors: true, highlight: true, autoNotes: true, theme: 'auto', lives: 3, fastInput: false },
     store.get(KEY.settings, {})
   );
   settings.lives = Math.min(MAX_LIVES, Math.max(MIN_LIVES, parseInt(settings.lives, 10) || 3));
@@ -71,6 +71,7 @@
   /* ------------------------------------------------------------------ 상태 */
   let G = null;            // 현재 게임
   let noteMode = false;
+  let activeNum = 0;       // 빠른 입력에서 골라 둔 숫자 (0 = 없음)
   let paused = false;
   let timerId = null;
   let lastTs = 0;
@@ -131,7 +132,7 @@
       solution: s.solution.slice(),
       values: s.values.slice(),
       notes: s.notes.slice(),
-      hinted: Array.isArray(s.hinted) ? s.hinted.slice() : [],
+      hinted: Array.isArray(s.hinted) ? s.hinted.filter((i) => s.values[i] === s.solution[i]) : [],
       elapsed: s.elapsed || 0,
       mistakes: s.mistakes || 0,
       lives: lives,
@@ -144,6 +145,7 @@
       completed: false,
     };
     noteMode = !!s.noteMode;
+    activeNum = 0;
     paused = false;
     $('#board').classList.remove('win');
     $('#pause-overlay').hidden = true;
@@ -268,7 +270,8 @@
     const isSel = i === sel;
     const related = sel >= 0 && !isSel && settings.highlight &&
       (E.ROW[i] === E.ROW[sel] || E.COL[i] === E.COL[sel] || E.BOX[i] === E.BOX[sel]);
-    const same = settings.highlight && selVal !== 0 && v === selVal && !isSel;
+    const fast = settings.fastInput && activeNum !== 0;
+    const same = (settings.highlight || fast) && selVal !== 0 && v === selVal && !isSel;
     const err = settings.showErrors && v !== 0 && !given && !hinted && v !== G.solution[i];
 
     let cls = C.base;
@@ -280,7 +283,7 @@
     if (isSel) cls += ' sel';
     if (err) cls += ' err';
 
-    const noteHl = v === 0 && nt !== 0 && settings.highlight ? selVal : 0;
+    const noteHl = v === 0 && nt !== 0 && (settings.highlight || fast) ? selVal : 0;
     const sig = v + '|' + nt + '|' + cls + '|' + noteHl;
     if (sig === C.sig) return;
     C.sig = sig;
@@ -303,16 +306,21 @@
   function renderAll() {
     if (!G) return;
     const done = G.completed || G.over;
-    const sel = G.selected;
-    const selVal = sel >= 0 ? G.values[sel] : 0;
-    for (let i = 0; i < 81; i++) renderCell(i, sel, selVal);
-
-    // 숫자패드: 남은 개수
     const counts = new Array(10).fill(0);
     for (let i = 0; i < 81; i++) if (G.values[i] && G.values[i] === G.solution[i]) counts[G.values[i]]++;
+    if (activeNum && (done || !settings.fastInput || counts[activeNum] >= 9)) activeNum = 0;
+    const sel = G.selected;
+    const selVal = sel >= 0 ? G.values[sel] : 0;
+    const hlVal = settings.fastInput && activeNum !== 0 ? activeNum : selVal;
+    for (let i = 0; i < 81; i++) renderCell(i, sel, hlVal);
+
+    // 숫자패드: 남은 개수 / 빠른 입력으로 고른 숫자
     $$('.num').forEach((b) => {
       const n = Number(b.dataset.n);
       const left = 9 - counts[n];
+      const on = settings.fastInput && activeNum === n;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
       b.querySelector('.left').textContent = left > 0 ? String(left) : '';
       b.disabled = left <= 0 || done;
     });
@@ -329,6 +337,11 @@
     $('#btn-notes').setAttribute('aria-pressed', String(noteMode));
     $('#notes-state').textContent = noteMode ? '켬' : '끔';
     $('#hint-count').textContent = String(G.hints);
+    $('#btn-fast').checked = settings.fastInput;
+    $('.fast-row').classList.toggle('on', settings.fastInput);
+    $('#fast-hint').textContent = !settings.fastInput
+      ? '숫자를 먼저 고르고 칸을 누르면 바로 입력돼요'
+      : (activeNum ? activeNum + ' 입력 중 · 칸을 누르세요' : '아래에서 입력할 숫자를 고르세요');
   }
 
   /* ------------------------------------------------------------------ 편집 (되돌리기 지원) */
@@ -345,7 +358,7 @@
       if (G.history.length > HISTORY_LIMIT) G.history.shift();
       G.future.length = 0;
     }
-    return entry.length > 0;
+    return entry.length ? entry : null;
   }
 
   function clearPeerNotes(i, v, touch) {
@@ -378,13 +391,16 @@
 
   function inputNumber(n) {
     if (!usable()) return;
-    const i = G.selected;
-    if (i < 0) { toast('먼저 칸을 선택하세요'); return; }
-    if (isLocked(i)) { toast('고정된 칸이에요'); return; }
+    if (G.selected < 0) { toast('먼저 칸을 선택하세요'); return; }
+    placeNumber(G.selected, n, false);
+  }
+
+  function placeNumber(i, n, quiet) {
+    if (isLocked(i)) { if (!quiet) toast('고정된 칸이에요'); return; }
     const bit = 1 << (n - 1);
 
     if (noteMode) {
-      if (G.values[i] !== 0) { toast('숫자가 있는 칸엔 메모할 수 없어요'); return; }
+      if (G.values[i] !== 0) { if (!quiet) toast('숫자가 있는 칸엔 메모할 수 없어요'); return; }
       transact((touch) => { touch(i); G.notes[i] ^= bit; });
       afterChange();
       return;
@@ -415,6 +431,33 @@
     }
   }
 
+  /* 빠른 입력: 숫자를 먼저 골라 두면, 칸을 누를 때마다 그 숫자가 바로 들어간다.
+     같은 숫자가 이미 들어 있는 칸을 다시 누르면 지워지고, 메모 모드면 메모로 들어간다. */
+  function tapCell(i) {
+    if (!usable()) return;
+    if (settings.fastInput && activeNum !== 0) {
+      G.selected = i;
+      if (!isLocked(i)) placeNumber(i, activeNum, true);
+      renderAll();
+      return;
+    }
+    select(i);
+  }
+
+  function chooseNumber(n) {
+    if (!usable()) return;
+    activeNum = activeNum === n ? 0 : n;
+    renderAll();
+  }
+
+  function setFast(on) {
+    if (!G) return;
+    settings.fastInput = !!on;
+    activeNum = 0;
+    store.set(KEY.settings, settings);
+    renderAll();
+  }
+
   function erase() {
     if (!usable()) return;
     const i = G.selected;
@@ -427,7 +470,11 @@
   function undo() {
     if (!usable() || !G.history.length) return;
     const entry = G.history.pop();
-    entry.forEach((c) => { G.values[c[0]] = c[1]; G.notes[c[0]] = c[2]; });
+    entry.forEach((c) => {
+      G.values[c[0]] = c[1];
+      G.notes[c[0]] = c[2];
+      if (c[5]) { const k = G.hinted.indexOf(c[0]); if (k !== -1) G.hinted.splice(k, 1); }
+    });
     G.future.push(entry);
     G.selected = entry[0][0];
     afterChange();
@@ -436,7 +483,11 @@
   function redo() {
     if (!usable() || !G.future.length) return;
     const entry = G.future.pop();
-    entry.forEach((c) => { G.values[c[0]] = c[3]; G.notes[c[0]] = c[4]; });
+    entry.forEach((c) => {
+      G.values[c[0]] = c[3];
+      G.notes[c[0]] = c[4];
+      if (c[5] && G.hinted.indexOf(c[0]) === -1) G.hinted.push(c[0]);
+    });
     G.history.push(entry);
     G.selected = entry[0][0];
     afterChange();
@@ -459,13 +510,14 @@
     }
     if (t < 0) { toast('채울 칸이 없어요'); return; }
     const n = G.solution[t];
-    transact((touch) => {
+    const entry = transact((touch) => {
       touch(t);
       G.values[t] = n;
       G.notes[t] = 0;
       if (settings.autoNotes) clearPeerNotes(t, n, touch);
     });
-    G.hinted.push(t);
+    if (entry) entry.forEach((c) => { if (c[0] === t) c[5] = 1; });
+    if (G.hinted.indexOf(t) === -1) G.hinted.push(t);
     G.hints++;
     G.selected = t;
     afterChange();
@@ -699,14 +751,17 @@
     $('#btn-erase').addEventListener('click', erase);
     $('#btn-notes').addEventListener('click', toggleNotes);
     $('#btn-hint').addEventListener('click', hint);
+    $('#btn-fast').addEventListener('change', (e) => setFast(e.target.checked));
 
     board.addEventListener('click', (e) => {
       const c = e.target.closest('.cell');
-      if (c) select(Number(c.dataset.i));
+      if (c) tapCell(Number(c.dataset.i));
     });
     $('#numpad').addEventListener('click', (e) => {
       const b = e.target.closest('.num');
-      if (b) inputNumber(Number(b.dataset.n));
+      if (!b) return;
+      const n = Number(b.dataset.n);
+      if (settings.fastInput) chooseNumber(n); else inputNumber(n);
     });
 
     // 설정
@@ -747,6 +802,7 @@
       switch (e.code) {
         case 'Backspace': case 'Delete': case 'Digit0': case 'Numpad0': e.preventDefault(); erase(); return;
         case 'KeyN': toggleNotes(); return;
+        case 'KeyF': setFast(!settings.fastInput); return;
         case 'KeyH': hint(); return;
         case 'KeyP': togglePause(); return;
         case 'ArrowUp': case 'ArrowDown': case 'ArrowLeft': case 'ArrowRight': {
