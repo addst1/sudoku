@@ -9,6 +9,10 @@
   const DIFFS = ['easy', 'medium', 'hard'];
   const DIFF_NAME = { easy: '쉬움', medium: '보통', hard: '어려움' };
   const HISTORY_LIMIT = 300;
+  const MIN_LIVES = 1;
+  const MAX_LIVES = 10;
+  const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
+  const MOON = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
 
   /* ------------------------------------------------------------------ 저장소 */
   const store = {
@@ -24,9 +28,10 @@
 
   /* ------------------------------------------------------------------ 설정 */
   const settings = Object.assign(
-    { showErrors: true, highlight: true, autoNotes: true, theme: 'auto' },
+    { showErrors: true, highlight: true, autoNotes: true, theme: 'auto', lives: 3 },
     store.get(KEY.settings, {})
   );
+  settings.lives = Math.min(MAX_LIVES, Math.max(MIN_LIVES, parseInt(settings.lives, 10) || 3));
   const THEME_COLOR = { light: '#f4f6fb', dark: '#0f121a' };
 
   function applyTheme() {
@@ -37,6 +42,20 @@
       if (!m.dataset.orig) m.dataset.orig = m.getAttribute('content');
       m.setAttribute('content', settings.theme === 'auto' ? m.dataset.orig : THEME_COLOR[settings.theme]);
     });
+    renderThemeIcon();
+  }
+
+  function effectiveTheme() {
+    if (settings.theme !== 'auto') return settings.theme;
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function renderThemeIcon() {
+    const ico = $('#ico-theme');
+    if (!ico) return;
+    const dark = effectiveTheme() === 'dark';
+    ico.innerHTML = dark ? SUN : MOON;
+    $('#btn-theme-quick').setAttribute('aria-label', dark ? '라이트 모드로 전환' : '다크 모드로 전환');
   }
 
   /* ------------------------------------------------------------------ 기록 */
@@ -81,6 +100,8 @@
       hinted: G.hinted,
       elapsed: Math.floor(G.elapsed),
       mistakes: G.mistakes,
+      lives: G.lives,
+      maxLives: G.maxLives,
       hints: G.hints,
       history: G.history.slice(-100),
       future: G.future.slice(-100),
@@ -90,7 +111,7 @@
   }
 
   function saveGame() {
-    if (!G || G.completed) return;
+    if (!G || G.completed || G.over) return;
     store.set(KEY.game, serialize());
   }
 
@@ -102,6 +123,8 @@
   }
 
   function startFrom(s) {
+    const maxLives = Number.isInteger(s.maxLives) ? s.maxLives : settings.lives;
+    const lives = Number.isInteger(s.lives) ? s.lives : Math.max(1, maxLives - (s.mistakes || 0));
     G = {
       difficulty: s.difficulty,
       puzzle: s.puzzle.slice(),
@@ -111,6 +134,9 @@
       hinted: Array.isArray(s.hinted) ? s.hinted.slice() : [],
       elapsed: s.elapsed || 0,
       mistakes: s.mistakes || 0,
+      lives: lives,
+      maxLives: maxLives,
+      over: false,
       hints: s.hints || 0,
       history: Array.isArray(s.history) ? s.history : [],
       future: Array.isArray(s.future) ? s.future : [],
@@ -173,7 +199,7 @@
     const now = performance.now();
     const dt = now - lastTs;
     lastTs = now;
-    if (!G || G.completed || paused || document.hidden) return;
+    if (!G || G.completed || G.over || paused || document.hidden || document.querySelector('dialog[open]')) return;
     G.elapsed += Math.min(dt, 2000);
     renderTime();
     if (now - lastSave > 5000) { saveGame(); lastSave = now; }
@@ -276,6 +302,7 @@
 
   function renderAll() {
     if (!G) return;
+    const done = G.completed || G.over;
     const sel = G.selected;
     const selVal = sel >= 0 ? G.values[sel] : 0;
     for (let i = 0; i < 81; i++) renderCell(i, sel, selVal);
@@ -287,19 +314,18 @@
       const n = Number(b.dataset.n);
       const left = 9 - counts[n];
       b.querySelector('.left').textContent = left > 0 ? String(left) : '';
-      b.disabled = left <= 0 || G.completed;
+      b.disabled = left <= 0 || done;
     });
     $('#numpad').classList.toggle('notes-on', noteMode);
 
     // 헤더 / 도구
     $('#g-diff').textContent = DIFF_NAME[G.difficulty];
-    $('#g-mistakes').textContent = String(G.mistakes);
-    $('#g-mistakes-wrap').hidden = !settings.showErrors;
+    renderLives();
     renderTime();
-    $('#btn-undo').disabled = G.history.length === 0 || G.completed;
-    $('#btn-redo').disabled = G.future.length === 0 || G.completed;
-    $('#btn-erase').disabled = G.completed;
-    $('#btn-hint').disabled = G.completed;
+    $('#btn-undo').disabled = G.history.length === 0 || done;
+    $('#btn-redo').disabled = G.future.length === 0 || done;
+    $('#btn-erase').disabled = done;
+    $('#btn-hint').disabled = done;
     $('#btn-notes').setAttribute('aria-pressed', String(noteMode));
     $('#notes-state').textContent = noteMode ? '켬' : '끔';
     $('#hint-count').textContent = String(G.hints);
@@ -342,7 +368,7 @@
     return true;
   }
 
-  function usable() { return G && !G.completed && !paused; }
+  function usable() { return G && !G.completed && !G.over && !paused; }
 
   function select(i) {
     if (!usable()) return;
@@ -376,11 +402,17 @@
       G.notes[i] = 0;
       if (settings.autoNotes) clearPeerNotes(i, n, touch);
     });
-    if (n !== G.solution[i]) {
+    const wrong = n !== G.solution[i];
+    if (wrong) {
       G.mistakes++;
+      G.lives = Math.max(0, G.lives - 1);
       try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) { /* noop */ }
     }
     afterChange();
+    if (wrong) {
+      pulseLives();
+      if (G.lives <= 0) onOver();
+    }
   }
 
   function erase() {
@@ -460,8 +492,69 @@
     $('#win-summary').innerHTML =
       '<b>' + DIFF_NAME[G.difficulty] + '</b> · 시간 <b>' + fmt(secs) + '</b>' +
       (record ? ' 🏅 <b>최단 기록!</b>' : '') +
-      '<br>실수 ' + G.mistakes + '회 · 힌트 ' + G.hints + '회';
+      '<br>남은 하트 ' + G.lives + '/' + G.maxLives + ' · 힌트 ' + G.hints + '회';
     setTimeout(() => $('#dlg-win').showModal(), 650);
+  }
+
+  /* ------------------------------------------------------------------ 하트 / 게임 오버 */
+  const HEART_PATH = 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z';
+  function heartSvg(lost) {
+    return '<svg class="h' + (lost ? ' lost' : '') + '" viewBox="0 0 24 24" aria-hidden="true"><path d="' + HEART_PATH + '"/></svg>';
+  }
+
+  function renderLives() {
+    const el = $('#g-lives');
+    const left = G.lives, max = G.maxLives;
+    const sig = left + '/' + max;
+    if (el.dataset.sig === sig) return;
+    el.dataset.sig = sig;
+    el.setAttribute('aria-label', '남은 하트 ' + left + '개 (최대 ' + max + '개)');
+    if (max > 5) {
+      el.innerHTML = heartSvg(false) + '<b>' + left + '/' + max + '</b>';
+    } else {
+      let html = '';
+      for (let k = 0; k < max; k++) html += heartSvg(k >= left);
+      el.innerHTML = html;
+    }
+  }
+
+  function pulseLives() {
+    const el = $('#g-lives');
+    el.classList.remove('hit');
+    void el.offsetWidth;
+    el.classList.add('hit');
+    setTimeout(() => el.classList.remove('hit'), 450);
+  }
+
+  function onOver() {
+    G.over = true;
+    stats[G.difficulty].streak = 0;
+    saveStats();
+    store.del(KEY.game);
+    G.selected = -1;
+    renderAll();
+    let filled = 0, total = 0;
+    for (let i = 0; i < 81; i++) {
+      if (G.puzzle[i] === 0) { total++; if (G.values[i] === G.solution[i]) filled++; }
+    }
+    $('#over-summary').innerHTML =
+      '<b>' + DIFF_NAME[G.difficulty] + '</b> · 시간 <b>' + fmt(G.elapsed / 1000) + '</b>' +
+      '<br>맞게 채운 칸 ' + filled + '/' + total + ' · 힌트 ' + G.hints + '회';
+    try { if (navigator.vibrate) navigator.vibrate([80, 50, 80]); } catch (e) { /* noop */ }
+    setTimeout(() => $('#dlg-over').showModal(), 500);
+  }
+
+  function retrySame() {
+    $('#dlg-over').close();
+    stats[G.difficulty].played++;
+    saveStats();
+    startFrom({
+      difficulty: G.difficulty, puzzle: G.puzzle, solution: G.solution,
+      values: G.puzzle.slice(), notes: new Array(81).fill(0),
+      hinted: [], elapsed: 0, mistakes: 0, hints: 0, lives: settings.lives, maxLives: settings.lives,
+      history: [], future: [], selected: -1, noteMode: false,
+    });
+    saveGame();
   }
 
   /* ------------------------------------------------------------------ 새 게임 */
@@ -489,7 +582,8 @@
     startFrom({
       difficulty: diff, puzzle: p.puzzle, solution: p.solution,
       values: p.puzzle.slice(), notes: new Array(81).fill(0),
-      hinted: [], elapsed: 0, mistakes: 0, hints: 0, history: [], future: [], selected: -1, noteMode: false,
+      hinted: [], elapsed: 0, mistakes: 0, hints: 0, lives: settings.lives, maxLives: settings.lives,
+      history: [], future: [], selected: -1, noteMode: false,
     });
     saveGame();
     busy(false);
@@ -536,6 +630,9 @@
   }
 
   function renderSettings() {
+    $('#lives-val').textContent = String(settings.lives);
+    $('#lives-dec').disabled = settings.lives <= MIN_LIVES;
+    $('#lives-inc').disabled = settings.lives >= MAX_LIVES;
     $('#set-errors').checked = settings.showErrors;
     $('#set-highlight').checked = settings.highlight;
     $('#set-autonotes').checked = settings.autoNotes;
@@ -559,7 +656,29 @@
     $$('.diff').forEach((b) => b.addEventListener('click', () => newGame(b.dataset.diff)));
     $('#btn-continue').addEventListener('click', () => { const s = loadSaved(); if (s) startFrom(s); });
     $('#btn-stats').addEventListener('click', () => { renderStats(); $('#dlg-stats').showModal(); });
-    $('#btn-settings').addEventListener('click', () => { renderSettings(); $('#dlg-settings').showModal(); });
+    const openSettings = () => { renderSettings(); $('#dlg-settings').showModal(); };
+    $('#btn-settings').addEventListener('click', openSettings);
+    $('#btn-game-settings').addEventListener('click', openSettings);
+    $('#btn-theme-quick').addEventListener('click', () => {
+      settings.theme = effectiveTheme() === 'dark' ? 'light' : 'dark';
+      store.set(KEY.settings, settings);
+      applyTheme();
+      renderSettings();
+    });
+    const setLives = (n) => {
+      settings.lives = Math.min(MAX_LIVES, Math.max(MIN_LIVES, n));
+      store.set(KEY.settings, settings);
+      renderSettings();
+    };
+    $('#lives-dec').addEventListener('click', () => setLives(settings.lives - 1));
+    $('#lives-inc').addEventListener('click', () => setLives(settings.lives + 1));
+    $('#btn-over-retry').addEventListener('click', retrySame);
+    $('#btn-over-new').addEventListener('click', () => {
+      const d = G ? G.difficulty : 'medium';
+      $('#dlg-over').close();
+      newGame(d);
+    });
+    $('#btn-over-menu').addEventListener('click', () => { $('#dlg-over').close(); goHome(); });
 
     $('#btn-reset-stats').addEventListener('click', async () => {
       const dlg = $('#dlg-stats');
@@ -716,6 +835,10 @@
   /* ------------------------------------------------------------------ 시작 */
   function init() {
     applyTheme();
+    if (typeof window.matchMedia === 'function') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq && mq.addEventListener) mq.addEventListener('change', renderThemeIcon);
+    }
     buildBoard();
     buildNumpad();
     bind();

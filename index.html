@@ -21,6 +21,9 @@
 
     <!-- 홈 -->
     <section id="screen-home" class="screen">
+      <button id="btn-theme-quick" class="icon-btn theme-quick" type="button" aria-label="라이트/다크 전환">
+        <svg id="ico-theme" viewBox="0 0 24 24" aria-hidden="true"></svg>
+      </button>
       <div class="hero">
         <img src="icons/icon.svg" alt="" width="76" height="76">
         <h1>스도쿠</h1>
@@ -66,7 +69,10 @@
           <strong id="g-diff">보통</strong>
           <span id="g-time" aria-label="경과 시간">00:00</span>
         </div>
-        <div id="g-mistakes-wrap" class="mistakes">실수 <b id="g-mistakes">0</b></div>
+        <div id="g-lives" class="lives" role="img" aria-label="남은 하트"></div>
+        <button id="btn-game-settings" class="icon-btn" type="button" aria-label="설정">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
         <button id="btn-pause" class="icon-btn" type="button" aria-label="일시정지">
           <svg id="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         </button>
@@ -123,6 +129,14 @@
   <dialog id="dlg-settings">
     <form method="dialog">
       <h2>설정</h2>
+      <div class="row">
+        <span>하트 수<small>틀리면 하나씩 줄고, 모두 잃으면 게임 오버예요. 새 게임부터 적용돼요.</small></span>
+        <div class="stepper">
+          <button type="button" id="lives-dec" aria-label="하트 줄이기">−</button>
+          <output id="lives-val" aria-live="polite">3</output>
+          <button type="button" id="lives-inc" aria-label="하트 늘리기">+</button>
+        </div>
+      </div>
       <label class="row">
         <span>오류 표시<small>틀린 숫자를 빨간색으로 보여줘요</small></span>
         <input type="checkbox" id="set-errors" role="switch">
@@ -158,6 +172,20 @@
       <div class="dlg-actions col">
         <button type="button" class="btn primary" id="btn-win-again">한 판 더</button>
         <button type="button" class="btn" id="btn-win-menu">메뉴로</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 게임 오버 -->
+  <dialog id="dlg-over">
+    <form method="dialog">
+      <div class="win-emoji" aria-hidden="true">💔</div>
+      <h2>게임 오버</h2>
+      <p id="over-summary"></p>
+      <div class="dlg-actions col">
+        <button type="button" class="btn primary" id="btn-over-retry">같은 퍼즐 다시 도전</button>
+        <button type="button" class="btn" id="btn-over-new">새 게임</button>
+        <button type="button" class="btn" id="btn-over-menu">메뉴로</button>
       </div>
     </form>
   </dialog>
