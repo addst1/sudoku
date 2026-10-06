@@ -1,6 +1,6 @@
 /* 서비스 워커: 앱 셸을 캐시해서 오프라인에서도 실행되게 합니다.
  * 배포할 때마다 VERSION을 올리면 사용자에게 "새 버전" 알림이 뜨고 캐시가 교체됩니다. */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `sudoku-${VERSION}`;
 
 const ASSETS = [

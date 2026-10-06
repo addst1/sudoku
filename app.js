@@ -28,7 +28,7 @@
 
   /* ------------------------------------------------------------------ 설정 */
   const settings = Object.assign(
-    { showErrors: true, highlight: true, autoNotes: true, theme: 'auto', lives: 3, fastInput: false },
+    { showErrors: true, highlight: true, theme: 'auto', lives: 3, fastInput: false },
     store.get(KEY.settings, {})
   );
   settings.lives = Math.min(MAX_LIVES, Math.max(MIN_LIVES, parseInt(settings.lives, 10) || 3));
@@ -340,8 +340,8 @@
     $('#btn-fast').checked = settings.fastInput;
     $('.fast-row').classList.toggle('on', settings.fastInput);
     $('#fast-hint').textContent = !settings.fastInput
-      ? '숫자를 먼저 고르고 칸을 누르면 바로 입력돼요'
-      : (activeNum ? activeNum + ' 입력 중 · 칸을 누르세요' : '아래에서 입력할 숫자를 고르세요');
+      ? '판이나 아래 숫자를 고른 뒤 빈 칸을 누르면 바로 입력돼요'
+      : (activeNum ? activeNum + ' 입력 중 · 빈 칸을 누르세요' : '판의 숫자나 아래 숫자를 눌러 고르세요');
   }
 
   /* ------------------------------------------------------------------ 편집 (되돌리기 지원) */
@@ -359,15 +359,6 @@
       G.future.length = 0;
     }
     return entry.length ? entry : null;
-  }
-
-  function clearPeerNotes(i, v, touch) {
-    const bit = 1 << (v - 1);
-    const peers = E.PEERS[i];
-    for (let k = 0; k < peers.length; k++) {
-      const p = peers[k];
-      if (G.notes[p] & bit) { touch(p); G.notes[p] &= ~bit; }
-    }
   }
 
   function afterChange() {
@@ -416,7 +407,6 @@
       touch(i);
       G.values[i] = n;
       G.notes[i] = 0;
-      if (settings.autoNotes) clearPeerNotes(i, n, touch);
     });
     const wrong = n !== G.solution[i];
     if (wrong) {
@@ -431,13 +421,16 @@
     }
   }
 
-  /* 빠른 입력: 숫자를 먼저 골라 두면, 칸을 누를 때마다 그 숫자가 바로 들어간다.
-     같은 숫자가 이미 들어 있는 칸을 다시 누르면 지워지고, 메모 모드면 메모로 들어간다. */
+  /* 빠른 입력: 입력할 숫자를 '아래 숫자패드' 또는 '판 위의 숫자'로 고른다(둘 중 아무거나).
+     그 뒤 빈 칸을 누를 때마다 같은 숫자가 바로 들어가고, 메모 모드면 메모로 들어간다.
+     숫자가 든 칸을 누르면 그 숫자를 고른 것으로 바뀐다(지우려면 칸 선택 후 '지우기'). */
   function tapCell(i) {
     if (!usable()) return;
-    if (settings.fastInput && activeNum !== 0) {
+    if (settings.fastInput) {
       G.selected = i;
-      if (!isLocked(i)) placeNumber(i, activeNum, true);
+      const v = G.values[i];
+      if (v !== 0) activeNum = v;                                  // 판 위의 숫자를 눌러 입력할 숫자로 고름
+      else if (activeNum !== 0) placeNumber(i, activeNum, true);   // 빈 칸이면 고른 숫자를 입력
       renderAll();
       return;
     }
@@ -505,8 +498,9 @@
     const wrong = (i) => !isLocked(i) && G.values[i] !== G.solution[i];
     let t = G.selected;
     if (t < 0 || !wrong(t)) {
-      t = -1;
-      for (let i = 0; i < 81; i++) if (wrong(i)) { t = i; break; }
+      const pool = [];
+      for (let i = 0; i < 81; i++) if (wrong(i)) pool.push(i);
+      t = pool.length ? pool[Math.floor(Math.random() * pool.length)] : -1;
     }
     if (t < 0) { toast('채울 칸이 없어요'); return; }
     const n = G.solution[t];
@@ -514,7 +508,6 @@
       touch(t);
       G.values[t] = n;
       G.notes[t] = 0;
-      if (settings.autoNotes) clearPeerNotes(t, n, touch);
     });
     if (entry) entry.forEach((c) => { if (c[0] === t) c[5] = 1; });
     if (G.hinted.indexOf(t) === -1) G.hinted.push(t);
@@ -687,7 +680,6 @@
     $('#lives-inc').disabled = settings.lives >= MAX_LIVES;
     $('#set-errors').checked = settings.showErrors;
     $('#set-highlight').checked = settings.highlight;
-    $('#set-autonotes').checked = settings.autoNotes;
     $$('#set-theme button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeValue === settings.theme)));
   }
 
@@ -772,7 +764,6 @@
     });
     bindSwitch('#set-errors', 'showErrors');
     bindSwitch('#set-highlight', 'highlight');
-    bindSwitch('#set-autonotes', 'autoNotes');
     $$('#set-theme button').forEach((b) => b.addEventListener('click', () => {
       settings.theme = b.dataset.themeValue;
       store.set(KEY.settings, settings);
