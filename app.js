@@ -2,6 +2,7 @@
   'use strict';
 
   const E = window.SudokuEngine;
+  const UNITS = E.UNITS;
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
@@ -28,7 +29,7 @@
 
   /* ------------------------------------------------------------------ 설정 */
   const settings = Object.assign(
-    { showErrors: true, highlight: true, theme: 'auto', lives: 3, fastInput: false },
+    { showErrors: true, highlight: true, theme: 'auto', lives: 3, fastInput: false, celebrate: true },
     store.get(KEY.settings, {})
   );
   settings.lives = Math.min(MAX_LIVES, Math.max(MIN_LIVES, parseInt(settings.lives, 10) || 3));
@@ -361,10 +362,63 @@
     return entry.length ? entry : null;
   }
 
+  let lastPlaced = -1;     // 방금 정답을 넣은 칸 (축하 효과 판정용)
+
   function afterChange() {
+    const placed = lastPlaced; lastPlaced = -1;
     renderAll();
     saveGame();
-    if (!G.completed && isSolved()) onWin();
+    const solved = !G.completed && isSolved();
+    if (placed >= 0 && settings.celebrate && window.FX) celebrate(placed, solved);
+    if (solved) onWin(settings.celebrate && window.FX ? 1500 : 0);
+  }
+
+  /* 줄(가로·세로) → 블록(3×3) → 전체 순서로 단계별 축하 */
+  function celebrate(i, solved) {
+    const done = (u) => UNITS[u].every((k) => G.values[k] === G.solution[k]);
+    const lines = [], blocks = [];
+    for (let u = 0; u < UNITS.length; u++) {
+      if (UNITS[u].indexOf(i) === -1 || !done(u)) continue;
+      (u % 3 === 2 ? blocks : lines).push(u);
+    }
+    const center = (cellIdx) => {
+      const r = cells[cellIdx].el.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    };
+    const mid = (u) => center(UNITS[u][4]);
+    const order = (u) => {            // 방금 넣은 칸에서 퍼져 나가는 순서
+      const arr = UNITS[u].slice();
+      const base = arr.indexOf(i);
+      return arr.sort((a, b) => Math.abs(arr.indexOf(a) - base) - Math.abs(arr.indexOf(b) - base));
+    };
+    let t = 0;
+    if (lines.length) {
+      lines.forEach((u) => {
+        window.FX.wave(order(u).map((k) => cells[k].el), 45, 'rgba(61,220,151,.55)');
+        const p = mid(u);
+        window.FX.burst(p[0], p[1], 34, { speed: 260 });
+      });
+      try { if (navigator.vibrate) navigator.vibrate(25); } catch (e) { /* noop */ }
+      t += 380;
+    }
+    if (blocks.length) {
+      setTimeout(() => {
+        blocks.forEach((u) => {
+          window.FX.wave(order(u).map((k) => cells[k].el), 40, 'rgba(255,183,3,.6)');
+          const p = mid(u);
+          window.FX.burst(p[0], p[1], 60, { speed: 340 });
+          window.FX.burst(p[0], p[1], 26, { speed: 260, confetti: true });
+        });
+        try { if (navigator.vibrate) navigator.vibrate([30, 30, 30]); } catch (e) { /* noop */ }
+      }, t);
+      t += 450;
+    }
+    if (solved) {
+      setTimeout(() => {
+        window.FX.wave(cells.map((c) => c.el), 14, 'rgba(123,97,255,.5)');
+        window.FX.fireworks(7, 260);
+      }, t);
+    }
   }
 
   function isSolved() {
@@ -408,6 +462,7 @@
       G.notes[i] = 0;
     });
     const wrong = n !== G.solution[i];
+    if (!wrong) lastPlaced = i;
     if (wrong) {
       G.mistakes++;
       G.lives = Math.max(0, G.lives - 1);
@@ -503,11 +558,12 @@
     if (G.hinted.indexOf(t) === -1) G.hinted.push(t);
     G.hints++;
     G.selected = t;
+    lastPlaced = t;
     afterChange();
   }
 
   /* ------------------------------------------------------------------ 완료 */
-  function onWin() {
+  function onWin(delay) {
     G.completed = true;
     const secs = Math.floor(G.elapsed / 1000);
     const s = stats[G.difficulty];
@@ -528,7 +584,7 @@
       '<b>' + DIFF_NAME[G.difficulty] + '</b> · 시간 <b>' + fmt(secs) + '</b>' +
       (record ? ' 🏅 <b>최단 기록!</b>' : '') +
       '<br>남은 하트 ' + G.lives + '/' + G.maxLives + ' · 힌트 ' + G.hints + '회';
-    setTimeout(() => $('#dlg-win').showModal(), 650);
+    setTimeout(() => $('#dlg-win').showModal(), 650 + (delay || 0));
   }
 
   /* ------------------------------------------------------------------ 하트 / 게임 오버 */
@@ -670,6 +726,7 @@
     $('#lives-inc').disabled = settings.lives >= MAX_LIVES;
     $('#set-errors').checked = settings.showErrors;
     $('#set-highlight').checked = settings.highlight;
+    $('#set-celebrate').checked = settings.celebrate;
     $$('#set-theme button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeValue === settings.theme)));
   }
 
@@ -761,6 +818,7 @@
     });
     bindSwitch('#set-errors', 'showErrors');
     bindSwitch('#set-highlight', 'highlight');
+    bindSwitch('#set-celebrate', 'celebrate');
     $$('#set-theme button').forEach((b) => b.addEventListener('click', () => {
       settings.theme = b.dataset.themeValue;
       store.set(KEY.settings, settings);
