@@ -340,8 +340,8 @@
     $('#btn-fast').checked = settings.fastInput;
     $('.fast-row').classList.toggle('on', settings.fastInput);
     $('#fast-hint').textContent = !settings.fastInput
-      ? '판의 맞춘 숫자를 누른 뒤 빈 칸을 누르면 같은 숫자가 입력돼요'
-      : (activeNum ? activeNum + ' 입력 중 · 빈 칸을 누르세요' : '판에 채워진 숫자를 눌러 고르세요');
+      ? '판이나 아래 숫자를 고른 뒤 빈 칸을 누르면 입력돼요'
+      : (activeNum ? activeNum + ' 입력 중 · 빈 칸을 누르세요' : '판의 숫자나 아래 숫자를 눌러 고르세요');
   }
 
   /* ------------------------------------------------------------------ 편집 (되돌리기 지원) */
@@ -397,9 +397,8 @@
       return;
     }
 
-    if (G.values[i] === n) {          // 같은 숫자를 다시 누르면 지움
-      transact((touch) => { touch(i); G.values[i] = 0; });
-      afterChange();
+    if (G.values[i] !== 0) {          // 이미 입력된 칸은 '지우기' 전에는 바꿀 수 없음
+      if (!quiet) toast('지우기를 누른 뒤 입력하세요');
       return;
     }
 
@@ -744,7 +743,14 @@
       const b = e.target.closest('.num');
       if (!b) return;
       const n = Number(b.dataset.n);
-      inputNumber(n);
+      if (!settings.fastInput) { inputNumber(n); return; }
+      if (!usable()) return;
+      // 빠른 입력: 아래 숫자는 (1) 선택된 빈 칸에 바로 입력하고 (2) 이후 빈 칸 터치용 숫자로도 고른다
+      const sel = G.selected;
+      const emptySel = sel >= 0 && !isLocked(sel) && G.values[sel] === 0;
+      if (emptySel) { activeNum = n; placeNumber(sel, n, true); renderAll(); return; }
+      activeNum = activeNum === n ? 0 : n;
+      renderAll();
     });
 
     // 설정
