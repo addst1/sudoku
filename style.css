@@ -471,3 +471,5 @@ body:has(#screen-game:not([hidden])) { background: var(--surface); }
 .numpad.notes-on .num { background: transparent; border: 0; }
 .numpad.notes-on .num .d { font-size: 36px; color: var(--pad-ink); }
 @media (max-width: 380px) { .num { height: 70px; } .num .d { font-size: 36px; } .tool svg { width: 32px; height: 32px; } }
+
+.app-info { margin-top: 14px; text-align: center; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }

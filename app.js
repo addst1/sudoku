@@ -690,7 +690,7 @@
     $$('.diff').forEach((b) => b.addEventListener('click', () => newGame(b.dataset.diff)));
     $('#btn-continue').addEventListener('click', () => { const s = loadSaved(); if (s) startFrom(s); });
     $('#btn-stats').addEventListener('click', () => { renderStats(); $('#dlg-stats').showModal(); });
-    const openSettings = () => { renderSettings(); $('#dlg-settings').showModal(); };
+    const openSettings = () => { renderSettings(); $('#app-info').textContent = '버전 ' + (window.APP_VERSION || '-') + ' · ' + (window.APP_DATE || '') + ' · 제작 Great YS'; $('#dlg-settings').showModal(); };
     $('#btn-settings').addEventListener('click', openSettings);
     $('#btn-game-settings').addEventListener('click', openSettings);
     $('#btn-theme-quick').addEventListener('click', () => {
