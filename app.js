@@ -36,12 +36,14 @@
   const THEME_COLOR = { light: '#f4f6fb', dark: '#0f121a' };
 
   function applyTheme() {
+    // 'auto'일 때도 실제 적용 값(라이트/다크)을 data-theme에 직접 넣어, 브라우저별 미디어쿼리 차이에 의존하지 않게 함
+    const eff = effectiveTheme();
     const root = document.documentElement;
-    if (settings.theme === 'auto') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', settings.theme);
+    root.setAttribute('data-theme', eff);
+    root.style.colorScheme = eff;
     $$('meta[name="theme-color"]').forEach((m) => {
-      if (!m.dataset.orig) m.dataset.orig = m.getAttribute('content');
-      m.setAttribute('content', settings.theme === 'auto' ? m.dataset.orig : THEME_COLOR[settings.theme]);
+      m.removeAttribute('media');
+      m.setAttribute('content', THEME_COLOR[eff]);
     });
     renderThemeIcon();
   }
@@ -939,7 +941,7 @@
     applyTheme();
     if (typeof window.matchMedia === 'function') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      if (mq && mq.addEventListener) mq.addEventListener('change', renderThemeIcon);
+      if (mq && mq.addEventListener) mq.addEventListener('change', applyTheme);
     }
     buildBoard();
     buildNumpad();

@@ -473,3 +473,22 @@ body:has(#screen-game:not([hidden])) { background: var(--surface); }
 @media (max-width: 380px) { .num { height: 70px; } .num .d { font-size: 36px; } .tool svg { width: 32px; height: 32px; } }
 
 .app-info { margin-top: 14px; text-align: center; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+
+/* ================= v12: 굵은 구분선을 칸 테두리가 아닌 덮개 선으로 (기기별 테두리 렌더링 차이 방지) ================= */
+#board { position: relative; }
+.cell.bR, .cell.bB { border-color: var(--grid-line); border-width: 0 1px 1px 0; }
+.cell.bR { border-right: 1px solid var(--grid-line); }
+.cell.bB { border-bottom: 1px solid var(--grid-line); }
+.cell.cR { border-right: 0; }
+.cell.cB { border-bottom: 0; }
+#board::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background:
+    linear-gradient(to right,
+      transparent calc(100% / 3 - 1.5px), var(--grid-strong) calc(100% / 3 - 1.5px), var(--grid-strong) calc(100% / 3 + 1.5px), transparent calc(100% / 3 + 1.5px),
+      transparent calc(200% / 3 - 1.5px), var(--grid-strong) calc(200% / 3 - 1.5px), var(--grid-strong) calc(200% / 3 + 1.5px), transparent calc(200% / 3 + 1.5px)),
+    linear-gradient(to bottom,
+      transparent calc(100% / 3 - 1.5px), var(--grid-strong) calc(100% / 3 - 1.5px), var(--grid-strong) calc(100% / 3 + 1.5px), transparent calc(100% / 3 + 1.5px),
+      transparent calc(200% / 3 - 1.5px), var(--grid-strong) calc(200% / 3 - 1.5px), var(--grid-strong) calc(200% / 3 + 1.5px), transparent calc(200% / 3 + 1.5px));
+}
