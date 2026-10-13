@@ -5,9 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>스도쿠</title>
   <meta name="description" content="오프라인에서도 즐기는 스도쿠 게임">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="only light">
   <meta name="theme-color" content="#f4f6fb" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f121a" media="(prefers-color-scheme: dark)">
+  <script>
+    /* 첫 화면이 그려지기 전에 테마를 정해서, 폰의 '강제 다크'가 라이트 화면을 어둡게 덧칠하지 못하게 함 */
+    try {
+      var s = JSON.parse(localStorage.getItem('sudoku.settings.v1') || '{}'), t = s.theme;
+      if (t !== 'light' && t !== 'dark') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      document.querySelector('meta[name="color-scheme"]').setAttribute('content', 'only light');
+    } catch (e) { /* noop */ }
+  </script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">

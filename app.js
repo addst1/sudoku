@@ -40,7 +40,12 @@
     const eff = effectiveTheme();
     const root = document.documentElement;
     root.setAttribute('data-theme', eff);
-    root.style.colorScheme = eff;
+    // 테마 색은 앱이 직접 칠하므로, 라이트·다크 모두 'only light'로 선언해 브라우저의 '웹사이트 강제 다크'가 색을 뒤집지 못하게 함
+    const cs = 'only light';
+    root.style.colorScheme = cs;
+    let meta = document.querySelector('meta[name="color-scheme"]');
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'color-scheme'; document.head.appendChild(meta); }
+    meta.setAttribute('content', cs);
     $$('meta[name="theme-color"]').forEach((m) => {
       m.removeAttribute('media');
       m.setAttribute('content', THEME_COLOR[eff]);

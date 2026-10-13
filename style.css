@@ -492,3 +492,12 @@ body:has(#screen-game:not([hidden])) { background: var(--surface); }
       transparent calc(100% / 3 - 1.5px), var(--grid-strong) calc(100% / 3 - 1.5px), var(--grid-strong) calc(100% / 3 + 1.5px), transparent calc(100% / 3 + 1.5px),
       transparent calc(200% / 3 - 1.5px), var(--grid-strong) calc(200% / 3 - 1.5px), var(--grid-strong) calc(200% / 3 + 1.5px), transparent calc(200% / 3 + 1.5px));
 }
+
+/* 강제 다크 방지: 라이트 테마는 'only light', 다크 테마는 다크 선언 */
+
+/* 브라우저 강제 다크(Chrome '웹사이트 다크 모드' 등)와 무관하게 앱 색 그대로 표시: 항상 only light 선언 */
+:root, :root[data-theme="light"], :root[data-theme="dark"] { color-scheme: only light !important; }
+
+/* 다크 모드 굵은 구분선을 더 밝고 선명하게 */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --grid-strong: #c3cbe8; --grid-line: #3b4663; } }
+:root[data-theme="dark"] { --grid-strong: #c3cbe8; --grid-line: #3b4663; }
