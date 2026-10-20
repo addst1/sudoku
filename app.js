@@ -71,7 +71,10 @@
   const stats = (function () {
     const saved = store.get(KEY.stats, {});
     const out = {};
-    DIFFS.forEach((d) => { out[d] = Object.assign(blankStat(), saved[d]); });
+    DIFFS.forEach((d) => {
+      out[d] = Object.assign(blankStat(), saved[d]);
+      if (out[d].played < out[d].won) out[d].played = out[d].won;   // 예전에 어긋난 기록 보정 (승률 100% 초과 방지)
+    });
     return out;
   })();
   const saveStats = () => store.set(KEY.stats, stats);
@@ -575,6 +578,7 @@
     const secs = Math.floor(G.elapsed / 1000);
     const s = stats[G.difficulty];
     s.won++;
+    if (s.played < s.won) s.played = s.won;   // 시작 기록이 빠진 판이어도 완성 수가 시작 수를 넘지 않게
     s.streak++;
     s.bestStreak = Math.max(s.bestStreak, s.streak);
     s.total += secs;
@@ -713,7 +717,7 @@
     const rows = [
       ['시작한 게임', (s) => s.played],
       ['완성', (s) => s.won],
-      ['승률', (s) => (s.played ? Math.round((s.won / s.played) * 100) + '%' : '-')],
+      ['승률', (s) => (s.played ? Math.min(100, Math.round((s.won / s.played) * 100)) + '%' : '-')],
       ['최단 시간', (s) => (s.best !== null ? fmt(s.best) : '-')],
       ['평균 시간', (s) => (s.won ? fmt(s.total / s.won) : '-')],
       ['현재 연승', (s) => s.streak],
@@ -783,6 +787,8 @@
       dlg.close();
       if (await confirmDlg('모든 기록을 지울까요? 되돌릴 수 없어요.', '초기화')) {
         DIFFS.forEach((d) => { stats[d] = blankStat(); });
+        const running = loadSaved();            // 진행 중인 판은 초기화 직후에도 '시작한 게임'으로 센다
+        if (running && stats[running.difficulty]) stats[running.difficulty].played = 1;
         saveStats();
         renderHome();
         toast('기록을 초기화했어요');
