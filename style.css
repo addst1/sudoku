@@ -501,3 +501,5 @@ body:has(#screen-game:not([hidden])) { background: var(--surface); }
 /* 다크 모드 굵은 구분선을 더 밝고 선명하게 */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --grid-strong: #c3cbe8; --grid-line: #3b4663; } }
 :root[data-theme="dark"] { --grid-strong: #c3cbe8; --grid-line: #3b4663; }
+
+.vol { width: 140px; accent-color: var(--sel); }

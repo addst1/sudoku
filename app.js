@@ -29,10 +29,24 @@
 
   /* ------------------------------------------------------------------ 설정 */
   const settings = Object.assign(
-    { showErrors: true, highlight: true, theme: 'auto', lives: 3, fastInput: false, celebrate: true },
+    { showErrors: true, highlight: true, theme: 'auto', lives: 3, fastInput: false, celebrate: true, sound: false, music: false, haptic: false, volume: 0.6 },
     store.get(KEY.settings, {})
   );
   settings.lives = Math.min(MAX_LIVES, Math.max(MIN_LIVES, parseInt(settings.lives, 10) || 3));
+  const AU = window.Audio8 || null;
+  const sfx = (name) => { if (AU && settings.sound) { try { AU.sfx[name](); } catch (e) { /* noop */ } } };
+  const buzz = (pattern) => { if (!settings.haptic) return; try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* noop */ } };
+  function applyAudio() {
+    if (!AU) return;
+    AU.sfx.setEnabled(settings.sound);
+    AU.sfx.setVolume(settings.volume);
+    AU.setMusicEnabled(settings.music);
+  }
+  function syncMusic() {
+    if (!AU) return;
+    const want = !!G && !$('#screen-game').hidden && !paused && !G.completed && !G.over && !document.hidden;
+    AU.music(want);
+  }
   const THEME_COLOR = { light: '#f4f6fb', dark: '#0f121a' };
 
   function applyTheme() {
@@ -170,6 +184,7 @@
     $('#screen-home').hidden = name !== 'home';
     $('#screen-game').hidden = name !== 'game';
     window.scrollTo(0, 0);
+    syncMusic();
   }
 
   function goHome() {
@@ -353,6 +368,7 @@
     $('#fast-hint').textContent = !settings.fastInput
       ? '판이나 아래 숫자를 고른 뒤 빈 칸을 누르면 입력돼요'
       : (activeNum ? activeNum + ' 입력 중 · 빈 칸을 누르세요' : '판의 숫자나 아래 숫자를 눌러 고르세요');
+    syncMusic();
   }
 
   /* ------------------------------------------------------------------ 편집 (되돌리기 지원) */
@@ -379,12 +395,13 @@
     renderAll();
     saveGame();
     const solved = !G.completed && isSolved();
-    if (placed >= 0 && settings.celebrate && window.FX) celebrate(placed, solved);
-    if (solved) onWin(settings.celebrate && window.FX ? 1500 : 0);
+    if (placed >= 0 && (settings.celebrate || settings.sound)) celebrate(placed, solved);
+    if (solved) onWin((settings.celebrate && window.FX) || settings.sound ? 1500 : 0);
   }
 
   /* 줄(가로·세로) → 블록(3×3) → 전체 순서로 단계별 축하 */
   function celebrate(i, solved) {
+    const FXs = settings.celebrate && window.FX ? window.FX : { wave() {}, burst() {}, fireworks() {} };
     const done = (u) => UNITS[u].every((k) => G.values[k] === G.solution[k]);
     const lines = [], blocks = [];
     for (let u = 0; u < UNITS.length; u++) {
@@ -404,30 +421,33 @@
     let t = 0;
     if (lines.length) {
       lines.forEach((u) => {
-        window.FX.wave(order(u).map((k) => cells[k].el), 45, 'rgba(61,220,151,.55)');
+        FXs.wave(order(u).map((k) => cells[k].el), 45, 'rgba(61,220,151,.55)');
         const p = mid(u);
-        window.FX.burst(p[0], p[1], 34, { speed: 260 });
+        FXs.burst(p[0], p[1], 34, { speed: 260 });
       });
-      try { if (navigator.vibrate) navigator.vibrate(25); } catch (e) { /* noop */ }
+      buzz(25);
+      setTimeout(() => sfx('line'), 140);
       t += 380;
     }
     if (blocks.length) {
       setTimeout(() => {
         blocks.forEach((u) => {
-          window.FX.wave(order(u).map((k) => cells[k].el), 40, 'rgba(255,183,3,.6)');
+          FXs.wave(order(u).map((k) => cells[k].el), 40, 'rgba(255,183,3,.6)');
           const p = mid(u);
-          window.FX.burst(p[0], p[1], 60, { speed: 340 });
-          window.FX.burst(p[0], p[1], 26, { speed: 260, confetti: true });
+          FXs.burst(p[0], p[1], 60, { speed: 340 });
+          FXs.burst(p[0], p[1], 26, { speed: 260, confetti: true });
         });
-        try { if (navigator.vibrate) navigator.vibrate([30, 30, 30]); } catch (e) { /* noop */ }
-      }, t);
+        buzz([30, 30, 30]);
+        sfx('block');
+      }, t + 140);
       t += 450;
     }
     if (solved) {
       setTimeout(() => {
-        window.FX.wave(cells.map((c) => c.el), 14, 'rgba(123,97,255,.5)');
-        window.FX.fireworks(7, 260);
-      }, t);
+        FXs.wave(cells.map((c) => c.el), 14, 'rgba(123,97,255,.5)');
+        FXs.fireworks(7, 260);
+        sfx('win');
+      }, t + 140);
     }
   }
 
@@ -457,6 +477,7 @@
     if (noteMode) {
       if (G.values[i] !== 0) { if (!quiet) toast('숫자가 있는 칸엔 메모할 수 없어요'); return; }
       transact((touch) => { touch(i); G.notes[i] ^= bit; });
+      sfx('note');
       afterChange();
       return;
     }
@@ -472,11 +493,12 @@
       G.notes[i] = 0;
     });
     const wrong = n !== G.solution[i];
-    if (!wrong) lastPlaced = i;
+    if (!wrong) { lastPlaced = i; sfx('correct'); }
     if (wrong) {
+      sfx('wrong');
       G.mistakes++;
       G.lives = Math.max(0, G.lives - 1);
-      try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) { /* noop */ }
+      buzz(40);
     }
     afterChange();
     if (wrong) {
@@ -493,7 +515,7 @@
     if (settings.fastInput) {
       G.selected = i;
       const v = G.values[i];
-      if (v !== 0) activeNum = v;                                  // 판 위의 숫자를 눌러 입력할 숫자로 고름
+      if (v !== 0) { activeNum = v; sfx('tap'); }                                  // 판 위의 숫자를 눌러 입력할 숫자로 고름
       else if (activeNum !== 0) placeNumber(i, activeNum, true);   // 빈 칸이면 고른 숫자를 입력
       renderAll();
       return;
@@ -504,6 +526,7 @@
   function setFast(on) {
     if (!G) return;
     settings.fastInput = !!on;
+    sfx('tap');
     activeNum = 0;
     store.set(KEY.settings, settings);
     renderAll();
@@ -515,6 +538,7 @@
     if (i < 0 || isLocked(i)) return;
     if (G.values[i] === 0 && G.notes[i] === 0) return;
     transact((touch) => { touch(i); G.values[i] = 0; G.notes[i] = 0; });
+    sfx('erase');
     afterChange();
   }
 
@@ -528,6 +552,7 @@
     });
     G.future.push(entry);
     G.selected = entry[0][0];
+    sfx('undo');
     afterChange();
   }
 
@@ -541,12 +566,14 @@
     });
     G.history.push(entry);
     G.selected = entry[0][0];
+    sfx('redo');
     afterChange();
   }
 
   function toggleNotes() {
     if (!usable()) return;
     noteMode = !noteMode;
+    sfx('tap');
     renderAll();
     saveGame();
   }
@@ -567,6 +594,7 @@
     if (entry) entry.forEach((c) => { if (c[0] === t) c[5] = 1; });
     if (G.hinted.indexOf(t) === -1) G.hinted.push(t);
     G.hints++;
+    sfx('hint');
     G.selected = t;
     lastPlaced = t;
     afterChange();
@@ -589,7 +617,7 @@
     G.selected = -1;
     board.classList.add('win');
     renderAll();
-    try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) { /* noop */ }
+    buzz([60, 40, 60]);
 
     $('#win-summary').innerHTML =
       '<b>' + DIFF_NAME[G.difficulty] + '</b> · 시간 <b>' + fmt(secs) + '</b>' +
@@ -630,6 +658,7 @@
 
   function onOver() {
     G.over = true;
+    setTimeout(() => sfx('over'), 250);
     stats[G.difficulty].streak = 0;
     saveStats();
     store.del(KEY.game);
@@ -642,7 +671,7 @@
     $('#over-summary').innerHTML =
       '<b>' + DIFF_NAME[G.difficulty] + '</b> · 시간 <b>' + fmt(G.elapsed / 1000) + '</b>' +
       '<br>맞게 채운 칸 ' + filled + '/' + total + ' · 힌트 ' + G.hints + '회';
-    try { if (navigator.vibrate) navigator.vibrate([80, 50, 80]); } catch (e) { /* noop */ }
+    buzz([80, 50, 80]);
     setTimeout(() => $('#dlg-over').showModal(), 500);
   }
 
@@ -738,6 +767,10 @@
     $('#set-errors').checked = settings.showErrors;
     $('#set-highlight').checked = settings.highlight;
     $('#set-celebrate').checked = settings.celebrate;
+    $('#set-sound').checked = settings.sound;
+    $('#set-music').checked = settings.music;
+    $('#set-haptic').checked = settings.haptic;
+    $('#set-volume').value = String(Math.round(settings.volume * 100));
     $$('#set-theme button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeValue === settings.theme)));
   }
 
@@ -752,6 +785,7 @@
       : '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
     if (!paused) lastTs = performance.now();
     saveGame();
+    syncMusic();
   }
 
   function bind() {
@@ -820,6 +854,7 @@
       const emptySel = sel >= 0 && !isLocked(sel) && G.values[sel] === 0;
       if (emptySel) { activeNum = n; placeNumber(sel, n, true); renderAll(); return; }
       activeNum = activeNum === n ? 0 : n;
+      sfx('tap');
       renderAll();
     });
 
@@ -832,6 +867,23 @@
     bindSwitch('#set-errors', 'showErrors');
     bindSwitch('#set-highlight', 'highlight');
     bindSwitch('#set-celebrate', 'celebrate');
+    const bindAudioSwitch = (id, key) => $(id).addEventListener('change', (e) => {
+      settings[key] = e.target.checked;
+      store.set(KEY.settings, settings);
+      applyAudio();
+      if (AU) AU.sfx.unlock();
+      if (key === 'sound' && settings.sound) sfx('tap');
+      if (key === 'haptic' && settings.haptic) buzz(40);
+      syncMusic();
+    });
+    bindAudioSwitch('#set-sound', 'sound');
+    bindAudioSwitch('#set-music', 'music');
+    bindAudioSwitch('#set-haptic', 'haptic');
+    $('#set-volume').addEventListener('input', (e) => {
+      settings.volume = Math.max(0, Math.min(1, Number(e.target.value) / 100));
+      applyAudio();
+    });
+    $('#set-volume').addEventListener('change', () => { store.set(KEY.settings, settings); sfx('correct'); });
     $$('#set-theme button').forEach((b) => b.addEventListener('click', () => {
       settings.theme = b.dataset.themeValue;
       store.set(KEY.settings, settings);
@@ -886,6 +938,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) saveGame();
       else lastTs = performance.now();
+      syncMusic();
     });
     window.addEventListener('pagehide', saveGame);
   }
@@ -950,6 +1003,11 @@
   /* ------------------------------------------------------------------ 시작 */
   function init() {
     applyTheme();
+    applyAudio();
+    // 브라우저 정책상 첫 터치 이후에만 소리를 낼 수 있음
+    const unlock = () => { if (AU) { AU.sfx.unlock(); syncMusic(); } };
+    document.addEventListener('pointerdown', unlock, { once: true });
+    document.addEventListener('keydown', unlock, { once: true });
     if (typeof window.matchMedia === 'function') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
       if (mq && mq.addEventListener) mq.addEventListener('change', applyTheme);

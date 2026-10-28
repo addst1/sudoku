@@ -10,6 +10,7 @@ const ASSETS = [
   'style.css',
   'version.js',
   'fx.js',
+  'audio.js',
   'sudoku.js',
   'app.js',
   'manifest.webmanifest',

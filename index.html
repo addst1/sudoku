@@ -170,6 +170,22 @@
         <span>축하 효과<small>줄·블록·전체를 완성하면 폭죽이 터져요</small></span>
         <input type="checkbox" id="set-celebrate" role="switch">
       </label>
+      <label class="row">
+        <span>효과음<small>8비트 레트로 소리로 입력·정답·오답을 알려줘요</small></span>
+        <input type="checkbox" id="set-sound" role="switch">
+      </label>
+      <label class="row">
+        <span>배경음악<small>잔잔한 칩튠이 게임 중에만 흘러요</small></span>
+        <input type="checkbox" id="set-music" role="switch">
+      </label>
+      <div class="row">
+        <span>소리 크기</span>
+        <input type="range" id="set-volume" class="vol" min="0" max="100" step="5" aria-label="소리 크기">
+      </div>
+      <label class="row">
+        <span>진동<small>오답·완성 때 진동해요 (배터리를 조금 더 써요)</small></span>
+        <input type="checkbox" id="set-haptic" role="switch">
+      </label>
       <div class="row">
         <span>테마</span>
         <div class="seg" id="set-theme" role="group" aria-label="테마">
@@ -232,6 +248,7 @@
 
   <script src="version.js"></script>
   <script src="fx.js"></script>
+  <script src="audio.js"></script>
   <script src="sudoku.js"></script>
   <script src="app.js"></script>
 </body>
